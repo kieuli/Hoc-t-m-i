@@ -1,0 +1,827 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Khóa Từ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+<style>
+/* Layout: one-screen phone app — seal-stamped header, a single practice card, progress ticks above it. */
+:root{
+  --bg:#edf1ee; --surface:#ffffff; --ink:#14201b; --muted:#5b6a64; --line:#d2dcd7;
+  --accent:#0d7457; --accent-ink:#ffffff; --accent-soft:#d8ece4;
+  --seal:#c0392b; --on-seal:#fff6f2; --bad-soft:#f8e0dc;
+  --good:#16804a; --good-soft:#dcf0e3; --grid:#e2aaa2; --ghost:#dde2df;
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-han:"Noto Serif SC","Songti SC","SimSun",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1513; --surface:#17211e; --ink:#e6eeea; --muted:#97a7a0; --line:#2a3833;
+  --accent:#3dbd90; --accent-ink:#04241a; --accent-soft:#163a2e;
+  --seal:#e0604f; --on-seal:#1a0805; --bad-soft:#3e1d19;
+  --good:#52d08b; --good-soft:#14341f; --grid:#6a3e38; --ghost:#34433e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1513; --surface:#17211e; --ink:#e6eeea; --muted:#97a7a0; --line:#2a3833;
+  --accent:#3dbd90; --accent-ink:#04241a; --accent-soft:#163a2e;
+  --seal:#e0604f; --on-seal:#1a0805; --bad-soft:#3e1d19;
+  --good:#52d08b; --good-soft:#14341f; --grid:#6a3e38; --ghost:#34433e; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+*{box-sizing:border-box}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 24px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.seal{width:32px;height:32px;display:grid;place-items:center;background:var(--seal);color:var(--on-seal);
+  font-family:var(--f-han);font-weight:700;font-size:20px;border-radius:5px;transform:rotate(-5deg)}
+nav{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+nav button{border:0;background:transparent;padding:6px 10px;border-radius:9px;font-size:14px;font-weight:500;color:var(--muted)}
+nav button[aria-current="true"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.ticks{display:flex;gap:4px;align-items:center}
+.ticks .grp{display:flex;gap:2px;flex:1}
+.ticks i{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.ticks i.on{background:var(--accent)}
+.ticks i.now{background:var(--accent);opacity:.45}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.chip{align-self:flex-start;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:3px 9px;border-radius:99px}
+.prompt{text-align:center;display:flex;flex-direction:column;gap:4px;padding-block:6px}
+.han{font-family:var(--f-han);font-weight:700;font-size:clamp(54px,17vw,84px);line-height:1.15;word-break:break-all}
+.word{font-weight:700;font-size:clamp(32px,10vw,44px);letter-spacing:-.02em;line-height:1.2;word-break:break-word}
+.mean{font-weight:600;font-size:26px;line-height:1.3}
+.pin{font-family:var(--f-han);font-size:20px;color:var(--muted)}
+.ask{font-size:15px;color:var(--muted);text-align:center;text-wrap:balance}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:14px 10px;font-weight:500;min-height:56px;text-align:center}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--seal);background:var(--bad-soft)}
+.row{display:flex;gap:8px}
+.row>input{flex:1;min-width:0}
+input[type=text],textarea{border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:12px 14px;font-size:18px;width:100%}
+textarea{font-size:16px;min-height:120px;resize:vertical}
+input:focus,textarea:focus{border-color:var(--accent);outline:none}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:13px 18px;font-weight:600;font-size:16px}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.small{padding:8px 12px;font-size:14px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+.link{border:0;background:none;color:var(--accent);font-weight:600;padding:4px 0;font-size:14px}
+.mic{display:flex;align-items:center;justify-content:center;gap:10px;border:1.5px dashed var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:14px;padding:14px;font-weight:600;width:100%}
+.mic svg{width:22px;height:22px;color:var(--accent)}
+.mic.on{border-style:solid;background:var(--accent);color:var(--accent-ink)}
+.mic.on svg{color:var(--accent-ink);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.2)}}
+@media (prefers-reduced-motion:reduce){.mic.on svg{animation:none}}
+.heard{text-align:center;font-size:15px;color:var(--muted);min-height:1.5em}
+.or{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.fb{border-radius:12px;padding:12px 14px;font-size:15px;display:flex;flex-direction:column;gap:10px}
+.fb.ok{background:var(--good-soft);color:var(--ink)}
+.fb.bad{background:var(--bad-soft);color:var(--ink)}
+.fb b{font-weight:700}
+.pads{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.tzg{position:relative;border:2px solid var(--grid);background:var(--surface);border-radius:4px;touch-action:none}
+.tzg svg.grid{position:absolute;inset:0;width:100%;height:100%;color:var(--grid);pointer-events:none}
+.tzg.active{border-color:var(--accent)}
+.tzg .w{position:relative}
+.sum{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.speak{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 14px;font-size:14px;font-weight:600}
+.speak svg{width:18px;height:18px;color:var(--accent)}
+.done-mark{width:64px;height:64px;border-radius:50%;background:var(--good-soft);color:var(--good);display:grid;place-items:center;margin:0 auto}
+.done-mark svg{width:34px;height:34px}
+h2{font-size:22px;margin:0;text-align:center;text-wrap:balance}
+h3{font-size:16px;margin:0}
+.muted{color:var(--muted);font-size:14px}
+.center{text-align:center}
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.item:last-child{border-bottom:0}
+.item .t{font-weight:600;font-size:18px;min-width:0;word-break:break-word}
+.item .t .h{font-family:var(--f-han)}
+.item .s{font-size:14px;color:var(--muted);min-width:0}
+.lvl{display:flex;gap:2px;margin-top:4px}
+.lvl i{width:10px;height:4px;border-radius:2px;background:var(--line)}
+.lvl i.on{background:var(--accent)}
+.del{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;font-size:13px;color:var(--muted)}
+.del.confirm{border-color:var(--seal);color:var(--seal);font-weight:600}
+.tag{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:middle}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 14px;font-weight:500}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.fmt{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+details summary{cursor:pointer;font-weight:600}
+.note{font-size:13px;color:var(--muted)}
+.learntop{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.learntop .seg{flex-wrap:nowrap}
+.prompt .speak{align-self:center;margin-top:6px}
+.strip{display:flex;justify-content:center;gap:6px}
+.strip span{font-family:var(--f-han);font-size:26px;width:40px;height:40px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:8px;color:var(--muted)}
+.strip span.cur{border-color:var(--accent);color:var(--accent)}
+.strip span.done{color:var(--ink);background:var(--good-soft);border-color:var(--good)}
+.padwrap{display:flex;justify-content:center}
+.padwrap canvas{position:relative;display:block;touch-action:none}
+.tools{display:flex;justify-content:space-around;gap:6px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:500;padding:6px 8px;border-radius:10px;min-width:64px}
+.tool svg{width:26px;height:26px;color:var(--accent)}
+.tool:disabled{opacity:.4}
+.form{display:flex;flex-direction:column;gap:8px}
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand"><span class="seal" aria-hidden="true">锁</span>Khóa Từ</div>
+    <nav aria-label="Mục">
+      <button type="button" data-tab="learn">Học</button>
+      <button type="button" data-tab="words">Từ của tôi</button>
+      <button type="button" data-tab="settings">Cài đặt</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const KEY = "khoatu.v1";
+const HOUR = 3600e3;
+const INTERVALS = [0, 1*HOUR, 6*HOUR, 24*HOUR, 3*24*HOUR, 7*24*HOUR, 16*24*HOUR, 35*24*HOUR];
+const STEPS = {
+  zh: [["meaning","Nghĩa"],["pinyin","Phát âm"],["write","Viết chữ"]],
+  en: [["meaning","Nghĩa"],["spell","Viết từ"],["speak","Phát âm"]]
+};
+const LANG_NAME = {zh:"Tiếng Trung", en:"Tiếng Anh"};
+const FILLER = ["ngày mai","con mèo","bệnh viện","màu xanh","đi bộ","cái bàn","mua sắm","mùa hè","điện thoại","nhà hàng"];
+const SAMPLE = [
+  ["zh","你好","nǐ hǎo","xin chào"],["zh","谢谢","xiè xie","cảm ơn"],["zh","学习","xué xí","học tập"],
+  ["zh","朋友","péng you","bạn bè"],["zh","喝水","hē shuǐ","uống nước"],["zh","老师","lǎo shī","giáo viên"],
+  ["en","habit","","thói quen"],["en","borrow","","mượn"],["en","improve","","cải thiện"],
+  ["en","schedule","","lịch trình"],["en","neighbor","","hàng xóm"]
+];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const mkWord = (lang,text,pinyin,meaning,sample) => ({id:uid(),lang,text,pinyin:pinyin||"",meaning,box:0,due:0,seen:0,wrong:0,sample:!!sample});
+
+function fresh(){
+  return {words:SAMPLE.map(s=>mkWord(s[0],s[1],s[2],s[3],true)),
+    settings:{perSession:3,langs:"zh",cooldown:15,outline:true},
+    session:null,lastDone:0,lastSummary:[],history:[]};
+}
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s && Array.isArray(s.words)){
+      const r = Object.assign(fresh(), s, {settings:Object.assign(fresh().settings, s.settings||{})});
+      if(r.settings.langs!=="zh" && r.settings.langs!=="en") r.settings.langs = "zh";
+      return r;
+    }
+  }catch(e){}
+  return fresh();
+}
+function autoPinyin(t){ try{ return window.pinyinPro && t ? window.pinyinPro.pinyin(t) : ""; }catch(e){ return ""; } }
+let S = load();
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ---------- helpers ---------- */
+function h(tag, props, ...kids){
+  const el = document.createElement(tag);
+  for(const [k,v] of Object.entries(props||{})){
+    if(v==null || v===false) continue;
+    if(k==="class") el.className = v;
+    else if(k.startsWith("on") && typeof v==="function") el.addEventListener(k.slice(2), v);
+    else if(k==="html") el.innerHTML = v;
+    else el.setAttribute(k, v===true ? "" : v);
+  }
+  for(const c of kids.flat()){ if(c==null || c===false) continue; el.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return el;
+}
+const svg = (inner, vb) => { const d=document.createElement("span"); d.innerHTML = `<svg viewBox="${vb||"0 0 24 24"}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`; return d.firstChild; };
+const ICON = {
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  vol:'<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5" stroke-width="2.6"/>',
+  play:'<path d="M7 5l12 7-12 7z"/>',
+  redo:'<path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
+};
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const isHan = c => /\p{Script=Han}/u.test(c);
+const hanOnly = s => [...(s||"")].filter(isHan).join("");
+const normEn = s => (s||"").toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' -]/g," ").replace(/\s+/g," ").trim();
+const normVi = s => (s||"").toLowerCase().normalize("NFC").replace(/\s+/g," ").trim();
+const byId = id => S.words.find(w=>w.id===id);
+
+function pinyinKey(s){
+  let letters="", tones="";
+  const mark = {"̄":"1","́":"2","̌":"3","̀":"4"};
+  for(const ch of (s||"").toLowerCase().normalize("NFD")){
+    if(mark[ch]) tones += mark[ch];
+    else if(ch>="1" && ch<="4") tones += ch;
+    else if(ch>="a" && ch<="z") letters += (ch==="v" ? "u" : ch);
+  }
+  return {letters, tones};
+}
+
+/* ---------- speech out ---------- */
+function say(text, lang){
+  try{
+    const ss = window.speechSynthesis; if(!ss) return false;
+    ss.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang==="zh" ? "zh-CN" : "en-US"; u.rate = lang==="zh" ? .8 : .9;
+    const v = ss.getVoices().find(v=>v.lang && v.lang.toLowerCase().startsWith(lang==="zh"?"zh":"en"));
+    if(v) u.voice = v;
+    ss.speak(u); return true;
+  }catch(e){ return false; }
+}
+try{ window.speechSynthesis && window.speechSynthesis.getVoices(); }catch(e){}
+const speakBtn = (text, lang, label) => window.speechSynthesis ? h("button",{type:"button",class:"speak",onclick:()=>say(text,lang)}, svg(ICON.vol), label||"Nghe") : null;
+
+/* ---------- speech in ---------- */
+const NativeSR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const inArtifact = !!(window.claude && typeof window.claude.use==="function");
+let dict = null, dictCtx = null;
+if(inArtifact){
+  window.claude.use("dictation").then(d=>{
+    if(!d) return;
+    dict = d;
+    d.onFinal(({text})=>{ if(dictCtx){ dictCtx.final += text; dictCtx.live(dictCtx.final); } });
+    d.onPartial(({text})=>{ if(dictCtx) dictCtx.live(text || dictCtx.final); });
+    d.onState(({state,reason})=>{ if(dictCtx && state==="idle") dictCtx.end(reason); });
+    if(currentTab==="learn" && S.session) renderLearn();
+  }).catch(()=>{});
+}
+const micPossible = () => !!dict || (!!NativeSR && !inArtifact);
+
+function micWidget(lang, onResult){
+  if(!micPossible()) return null;
+  const label = h("span",{},"Bấm rồi đọc to");
+  const btn = h("button",{type:"button",class:"mic"}, svg(ICON.mic), label);
+  const live = h("div",{class:"heard","aria-live":"polite"});
+  let on=false, stopFn=null, timer=null;
+  function finish(alts, err){
+    if(!on) return; on=false; clearTimeout(timer); dictCtx=null;
+    btn.classList.remove("on"); label.textContent="Bấm rồi đọc to";
+    alts = alts.map(a=>(a||"").trim()).filter(Boolean);
+    onResult(alts, err, live);
+  }
+  btn.addEventListener("click", ()=>{
+    if(on){ stopFn && stopFn(); return; }
+    on=true; btn.classList.add("on"); label.textContent="Đang nghe… bấm để dừng"; live.textContent="";
+    if(dict){
+      const ctx = {final:"", live:t=>{live.textContent=t;}, end:r=>finish([ctx.final], (r==="stopped"||r==="viewer_stopped")?null:r)};
+      dictCtx = ctx;
+      dict.start({language: lang==="zh" ? "zh" : "en"}).catch(e=>finish([ctx.final], e && e.code));
+      stopFn = ()=>{ dict.stop().catch(()=>{}); };
+    } else {
+      let alts=[], err=null;
+      const rec = new NativeSR();
+      rec.lang = lang==="zh" ? "zh-CN" : "en-US"; rec.interimResults = true; rec.maxAlternatives = 5;
+      rec.onresult = e=>{ alts=[]; let t=""; for(const r of e.results){ for(const a of r) alts.push(a.transcript); t += r[0].transcript; } live.textContent = t; };
+      rec.onerror = e=>{ err = e.error; };
+      rec.onend = ()=>finish(alts, alts.length?null:err);
+      try{ rec.start(); }catch(e){ finish([], "start"); }
+      stopFn = ()=>{ try{rec.stop();}catch(e){} };
+    }
+    timer = setTimeout(()=>stopFn && stopFn(), 8000);
+  });
+  return h("div",{style:"display:flex;flex-direction:column;gap:6px"}, btn, live);
+}
+function micErrorText(err){
+  if(err==="not-allowed" || err==="not_granted" || err==="service-not-allowed") return "Chưa được phép dùng micro. Bạn gõ đáp án bên dưới nhé.";
+  if(err==="unavailable"){ dict=null; return "Micro không dùng được ở đây. Bạn gõ đáp án bên dưới nhé."; }
+  return "Mình chưa nghe rõ. Bấm đọc lại, nói to và chậm hơn.";
+}
+
+/* ---------- session logic ---------- */
+function pool(){
+  return S.words.filter(w => w.lang===S.settings.langs);
+}
+function startSession(){
+  const p = pool().slice().sort((a,b)=> (a.due-b.due) || (a.box-b.box) || (Math.random()-.5));
+  const pick = p.slice(0, S.settings.perSession);
+  if(!pick.length){ S.session=null; save(); return false; }
+  S.session = {items: pick.map(w=>({id:w.id, step:0, errors:0})), idx:0};
+  save(); return true;
+}
+function finishWord(it){
+  const w = byId(it.id); if(!w) return;
+  const now = Date.now();
+  w.seen++;
+  if(it.errors===0){ w.box = Math.min(w.box+1, INTERVALS.length-1); w.due = now + INTERVALS[w.box]; }
+  else { w.wrong++; w.box = 0; w.due = now + 10*60e3; }
+}
+function finishSession(){
+  S.lastSummary = S.session.items.map(it=>({id:it.id, ok:it.errors===0}));
+  S.lastDone = Date.now();
+  S.history.push({t:S.lastDone, n:S.session.items.length});
+  if(S.history.length>500) S.history = S.history.slice(-500);
+  S.session = null; save();
+}
+
+/* ---------- views ---------- */
+let currentTab = "learn";
+const view = document.getElementById("view");
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click", ()=>show(b.dataset.tab)));
+function show(tab){
+  currentTab = tab;
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===tab ? "true" : "false"));
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  ({learn:renderLearn, words:renderWords, settings:renderSettings})[tab]();
+}
+function learnTop(){
+  const L = S.settings.langs;
+  return h("div",{class:"learntop"},
+    h("div",{class:"seg",role:"group","aria-label":"Học ngôn ngữ"},
+      ...["zh","en"].map(k=>h("button",{type:"button","aria-pressed":String(k===L),onclick:()=>{
+        if(k===S.settings.langs) return;
+        S.settings.langs = k; S.session = null; save();
+        if(startSession()) renderStep(); else renderLearn();
+      }}, LANG_NAME[k]))),
+    h("button",{type:"button",class:"btn small ghost",onclick:()=>{ wordsLang = S.settings.langs; show("words"); setTimeout(()=>{ const f=document.getElementById("new-"+wordsLang+"-text"); f && f.focus(); },50); }},"+ Thêm từ"));
+}
+function mount(...nodes){
+  if(currentTab==="learn") nodes.unshift(learnTop());
+  view.replaceChildren(h("div",{style:"display:flex;flex-direction:column;gap:14px"}, ...nodes));
+}
+
+function renderLearn(){
+  if(!pool().length){
+    mount(h("div",{class:"card"},
+      h("h2",{},"Chưa có từ để học"),
+      h("p",{class:"muted center"}, `Danh sách ${LANG_NAME[S.settings.langs]} đang trống. Thêm vài từ để bắt đầu.`),
+      h("button",{type:"button",class:"btn wide",onclick:()=>{ wordsLang=S.settings.langs; show("words"); }},"Thêm từ mới")));
+    return;
+  }
+  if(S.session){ renderStep(); return; }
+  const cool = S.settings.cooldown*60e3;
+  if(S.lastDone && Date.now()-S.lastDone < cool){ renderUnlocked(); return; }
+  startSession(); renderStep();
+}
+
+function progress(){
+  const ses = S.session;
+  const wrap = h("div",{class:"ticks","aria-hidden":"true"});
+  ses.items.forEach((it,i)=>{
+    const w = byId(it.id); const n = w ? STEPS[w.lang].length : 3;
+    const g = h("div",{class:"grp"});
+    for(let s=0;s<n;s++){
+      const done = i<ses.idx || (i===ses.idx && s<it.step);
+      const now = i===ses.idx && s===it.step;
+      g.append(h("i",{class: done?"on":(now?"now":"")}));
+    }
+    wrap.append(g);
+  });
+  return wrap;
+}
+
+function renderStep(){
+  const ses = S.session;
+  while(ses.idx < ses.items.length && !byId(ses.items[ses.idx].id)) ses.idx++;
+  if(ses.idx >= ses.items.length){ finishSession(); renderUnlocked(); return; }
+  const it = ses.items[ses.idx], w = byId(it.id);
+  const steps = STEPS[w.lang];
+  const [key, label] = steps[it.step];
+  const card = h("div",{class:"card"});
+  const fb = h("div",{"aria-live":"polite"});
+  const meta = h("div",{class:"meta"}, h("span",{},`Từ ${ses.idx+1}/${ses.items.length}`), h("span",{},`Bước ${it.step+1}/${steps.length}: ${label}`));
+  card.append(h("span",{class:"chip"}, LANG_NAME[w.lang]));
+  mount(h("div",{style:"display:flex;flex-direction:column;gap:8px"}, progress(), meta), card, fb);
+
+  let answered = false;
+  const done = (ok, info) => {
+    if(answered) return; answered = true;
+    card.querySelectorAll("input,button.opt,.check").forEach(e=>e.disabled=true);
+    if(ok){
+      it.step++;
+      if(it.step >= steps.length){ finishWord(it); save(); wordSummary(w, it, fb); }
+      else { save(); fb.replaceChildren(h("div",{class:"fb ok"}, h("b",{}, info || "Đúng rồi!"))); setTimeout(()=>{ if(S.session===ses && currentTab==="learn") renderStep(); }, 750); }
+    } else {
+      it.errors++; save();
+      fb.replaceChildren(h("div",{class:"fb bad"},
+        h("div",{}, h("b",{},"Chưa đúng. "), info || ""),
+        h("button",{type:"button",class:"btn wide",onclick:()=>renderStep()},"Làm lại bước này")));
+      fb.querySelector("button").focus();
+    }
+  };
+  ({meaning:stepMeaning, pinyin:stepPinyin, write:stepWrite, spell:stepSpell, speak:stepSpeak})[key](w, card, done, it);
+}
+
+function wordSummary(w, it, fb){
+  const last = S.session.idx === S.session.items.length-1;
+  const box = h("div",{class:"fb ok"},
+    h("div",{class:"sum"},
+      h("b",{}, it.errors ? "Xong từ này (lần sau ôn lại sớm)" : "Thuộc rồi!"),
+      h("div",{class: w.lang==="zh"?"han":"word", style:"font-size:44px"}, w.text),
+      w.pinyin ? h("div",{class:"pin"}, w.pinyin) : null,
+      h("div",{}, w.meaning),
+      speakBtn(w.text, w.lang)),
+    h("button",{type:"button",class:"btn wide",onclick:()=>{
+      S.session.idx++;
+      if(S.session.idx >= S.session.items.length){ finishSession(); renderUnlocked(); }
+      else { save(); renderStep(); }
+    }}, last ? "Mở khóa" : "Từ tiếp theo"));
+  fb.replaceChildren(box);
+  say(w.text, w.lang);
+  box.querySelector(".btn").focus();
+}
+
+function promptBlock(main, cls, sub){
+  return h("div",{class:"prompt"}, h("div",{class:cls}, main), sub ? h("div",{class:"pin"}, sub) : null);
+}
+
+function wordHead(w){
+  return h("div",{class:"prompt"},
+    h("div",{class: w.lang==="zh" ? "han" : "word"}, w.text),
+    w.lang==="zh" && w.pinyin ? h("div",{class:"pin"}, w.pinyin) : null,
+    speakBtn(w.text, w.lang));
+}
+
+function stepMeaning(w, card, done){
+  card.append(wordHead(w), h("p",{class:"ask"},"Từ này nghĩa là gì?"));
+  const others = shuffle([...new Set(S.words.filter(x=>x.lang===w.lang && normVi(x.meaning)!==normVi(w.meaning)).map(x=>x.meaning))]);
+  const fill = shuffle(FILLER.filter(f=>normVi(f)!==normVi(w.meaning) && !others.some(o=>normVi(o)===normVi(f))));
+  const opts = shuffle([w.meaning, ...others.concat(fill).slice(0,3)]);
+  const grid = h("div",{class:"opts"});
+  opts.forEach(o=>{
+    const b = h("button",{type:"button",class:"opt"}, o);
+    b.addEventListener("click", ()=>{
+      const ok = normVi(o)===normVi(w.meaning);
+      b.classList.add(ok?"right":"wrong");
+      if(!ok) grid.querySelectorAll(".opt").forEach(x=>{ if(normVi(x.textContent)===normVi(w.meaning)) x.classList.add("right"); });
+      done(ok, ok ? null : h("span",{},"Nghĩa đúng là ", h("b",{}, w.meaning), "."));
+    });
+    grid.append(b);
+  });
+  card.append(grid);
+}
+
+function answerRow(placeholder, lang, onCheck){
+  const inp = h("input",{type:"text",id:"ans",placeholder,autocomplete:"off",autocapitalize:"off",autocorrect:"off",spellcheck:"false",lang: lang==="zh"?"zh-CN":"en", "aria-label":placeholder});
+  const go = h("button",{type:"button",class:"btn check"},"Kiểm tra");
+  const run = () => { if(inp.value.trim()) onCheck(inp.value); else inp.focus(); };
+  go.addEventListener("click", run);
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); run(); } });
+  return {row:h("div",{class:"row"}, inp, go), inp};
+}
+
+function stepPinyin(w, card, done, it){
+  card.append(wordHead(w));
+  let tries = 0;
+  const mic = micWidget("zh", (alts, err, live)=>{
+    if(!alts.length){ live.textContent = micErrorText(err); return; }
+    const want = hanOnly(w.text);
+    const wantPin = pinyinKey(w.pinyin);
+    const hit = alts.some(a=>{
+      if(hanOnly(a).includes(want)) return true;
+      const p = pinyinKey(autoPinyin(hanOnly(a)));
+      return p.letters && p.letters===wantPin.letters && p.tones===wantPin.tones;
+    });
+    if(hit) return done(true, "Phát âm chuẩn!");
+    live.textContent = `Mình nghe thành “${alts[0]}”. Bấm nghe mẫu rồi đọc lại.`;
+  });
+  if(mic){ card.append(h("p",{class:"ask"},"Bấm nút micro rồi đọc to từ này"), mic); }
+  else {
+    card.append(h("p",{class:"ask"},"Máy này chưa dùng được micro. Nghe mẫu, rồi tự đọc to 3 lần."),
+      h("button",{type:"button",class:"btn ghost wide check",onclick:()=>done(true,"Tốt lắm!")},"Mình đã đọc to 3 lần"));
+  }
+  card.append(skipSpeak(it, done));
+}
+function skipSpeak(it, done){
+  return h("div",{class:"center"}, h("button",{type:"button",class:"link check",onclick:()=>{ it.errors++; save(); done(true,"Đã bỏ qua. Từ này sẽ được hỏi lại sớm."); }},"Không nói được lúc này? Bỏ qua"));
+}
+
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#333"; }
+const charCache = {};
+function loadCharData(ch){
+  if(charCache[ch]) return Promise.resolve(charCache[ch]);
+  const enc = encodeURIComponent(ch), base = "https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.1/" + enc + ".json";
+  return import(base + "/+esm").then(m=>m.default || m)
+    .catch(()=>fetch(base).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }))
+    .then(d=>{ if(!d || !d.strokes) throw new Error("no data"); charCache[ch]=d; return d; });
+}
+function gridBox(size){
+  const box = h("div",{class:"tzg",style:`width:${size+4}px;height:${size+4}px`});
+  box.innerHTML = `<svg class="grid" viewBox="0 0 100 100" aria-hidden="true"><g stroke="currentColor" stroke-width=".6" stroke-dasharray="3 3" fill="none"><line x1="0" y1="50" x2="100" y2="50"/><line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/></g></svg>`;
+  return box;
+}
+function toolBtn(icon, label, fn){
+  const lab = h("span",{}, label);
+  const b = h("button",{type:"button",class:"tool",onclick:fn}, svg(icon), lab);
+  b.setLabel = t => { lab.textContent = t; };
+  return b;
+}
+
+function stepWrite(w, card, done, it){
+  card.append(
+    h("div",{class:"prompt"}, h("div",{class:"mean"}, w.meaning), w.pinyin ? h("div",{class:"pin"}, w.pinyin) : null, speakBtn(w.text,"zh")),
+    h("p",{class:"ask"},"Vẽ chữ Hán của từ này vào ô, đúng thứ tự nét"));
+  const chars = [...w.text].filter(isHan);
+  if(!chars.length) return done(true);
+  const size = Math.max(200, Math.min(340, (card.clientWidth || 340) - 44));
+  const strip = h("div",{class:"strip","aria-hidden":"true"});
+  const padWrap = h("div",{class:"padwrap"});
+  const status = h("div",{class:"heard","aria-live":"polite"});
+  const actions = h("div",{});
+  const bPlay = toolBtn(ICON.play, "Xem cách viết", ()=>cur && cur.play());
+  const bRedo = toolBtn(ICON.redo, "Viết lại", ()=>cur && cur.reset());
+  const bEye = toolBtn(ICON.eye, S.settings.outline ? "Ẩn chữ mờ" : "Hiện chữ mờ", ()=>{
+    S.settings.outline = !S.settings.outline; save();
+    bEye.setLabel(S.settings.outline ? "Ẩn chữ mờ" : "Hiện chữ mờ");
+    cur && cur.outline(S.settings.outline);
+  });
+  card.append(chars.length>1 ? strip : null, padWrap, status, h("div",{class:"tools"}, bPlay, bRedo, bEye), actions);
+
+  let i = 0, mistakes = 0, peeked = false, cur = null;
+  let mode = window.HanziWriter ? "writer" : "canvas";
+  const colors = {strokeColor:cssVar("--ink"), drawingColor:cssVar("--accent"), highlightColor:cssVar("--accent"), outlineColor:cssVar("--ghost"), radicalColor:null, drawingWidth:Math.round(size/14)};
+
+  function drawStrip(){
+    strip.replaceChildren(...chars.map((c,k)=>h("span",{class:k<i?"done":(k===i?"cur":"")}, k<i ? c : "")));
+  }
+  function nextChar(){
+    if(i >= chars.length){
+      if(peeked || mistakes > chars.length*3){ it.errors++; save(); }
+      return done(true, peeked ? "Đã vẽ xong (có xem gợi ý)" : (mistakes ? `Vẽ xong · ${mistakes} lần sai nét` : "Vẽ chuẩn từng nét!"));
+    }
+    drawStrip(); status.textContent = chars.length>1 ? `Chữ ${i+1}/${chars.length}` : ""; actions.replaceChildren();
+    cur = mode==="writer" ? writerPad(chars[i]) : canvasPad(chars[i]);
+  }
+  function charDone(m){ mistakes += m; i++; setTimeout(nextChar, 450); }
+
+  function writerPad(ch){
+    const box = gridBox(size), target = h("div",{class:"w"});
+    box.append(target); padWrap.replaceChildren(box);
+    let failed = false, busy = false;
+    const wr = HanziWriter.create(target, ch, Object.assign({width:size,height:size,padding:12,showCharacter:false,showOutline:S.settings.outline,
+      charDataLoader:(c,ok,err)=>{ loadCharData(c).then(ok, err); },
+      onLoadCharDataError:()=>{ if(failed) return; failed=true; mode="canvas"; cur = canvasPad(ch); }}, colors));
+    const quiz = ()=>wr.quiz({showHintAfterMisses:2, onComplete:d=>{ if(!failed) charDone(d.totalMistakes); }});
+    quiz();
+    return {
+      play(){ if(busy) return; busy=true; peeked=true; wr.cancelQuiz(); wr.animateCharacter({onComplete:()=>{ wr.hideCharacter(); busy=false; quiz(); }}); },
+      reset(){ if(busy) return; wr.cancelQuiz(); quiz(); },
+      outline(on){ on ? wr.showOutline() : wr.hideOutline(); }
+    };
+  }
+
+  function canvasPad(ch){
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    const box = gridBox(size);
+    const cv = h("canvas",{width:Math.round(size*dpr), height:Math.round(size*dpr), style:`width:${size}px;height:${size}px`, "aria-label":"Ô vẽ chữ"});
+    box.append(cv); padWrap.replaceChildren(box);
+    const ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+    const font = s => `700 ${s}px "Noto Serif SC","Songti SC",serif`;
+    let strokes = [], showGlyph = false, fails = 0;
+    function glyph(c, color, s){ c.fillStyle = color; c.font = font(s*0.8); c.textAlign="center"; c.textBaseline="middle"; c.fillText(ch, s/2, s/2+s*0.03); }
+    function paint(){
+      ctx.clearRect(0,0,size,size);
+      if(S.settings.outline || showGlyph) glyph(ctx, showGlyph ? cssVar("--muted") : cssVar("--ghost"), size);
+      ctx.strokeStyle = cssVar("--accent"); ctx.lineWidth = size/16; ctx.lineCap="round"; ctx.lineJoin="round";
+      for(const s of strokes){ ctx.beginPath(); s.forEach((p,k)=> k ? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1])); if(s.length===1) ctx.lineTo(s[0][0]+.1,s[0][1]); ctx.stroke(); }
+    }
+    try{ document.fonts && document.fonts.load(font(80), ch).then(paint, ()=>{}); }catch(e){}
+    paint();
+    const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX-r.left)*size/r.width, (e.clientY-r.top)*size/r.height]; };
+    let drawing = false;
+    cv.addEventListener("pointerdown", e=>{ e.preventDefault(); drawing=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} strokes.push([pt(e)]); paint(); });
+    cv.addEventListener("pointermove", e=>{ if(!drawing) return; e.preventDefault(); strokes[strokes.length-1].push(pt(e)); paint(); });
+    const end = ()=>{ drawing=false; };
+    cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
+    function check(){
+      if(!strokes.length){ status.textContent = "Bạn chưa vẽ gì cả."; return; }
+      const N = 64, sc = N/size;
+      const mk = () => { const c = document.createElement("canvas"); c.width=c.height=N; return c.getContext("2d"); };
+      const g = mk(); glyph(g, "#000", N);
+      const k = mk(); k.scale(sc,sc); k.strokeStyle="#000"; k.lineWidth=size/16; k.lineCap="round"; k.lineJoin="round";
+      for(const s of strokes){ k.beginPath(); s.forEach((p,j)=> j ? k.lineTo(p[0],p[1]) : k.moveTo(p[0],p[1])); if(s.length===1) k.lineTo(s[0][0]+.1,s[0][1]); k.stroke(); }
+      const G = g.getImageData(0,0,N,N).data, K = k.getImageData(0,0,N,N).data;
+      const on = (D,x,y) => x>=0 && y>=0 && x<N && y<N && D[(y*N+x)*4+3] > 60;
+      let gp=0, cov=0, kp=0, ins=0;
+      for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+        const gi = on(G,x,y), ki = on(K,x,y);
+        if(gi){ gp++; if(ki) cov++; }
+        if(ki){ kp++; let near=false; for(let dy=-3;dy<=3&&!near;dy++) for(let dx=-3;dx<=3;dx++) if(on(G,x+dx,y+dy)){ near=true; break; } if(near) ins++; }
+      }
+      const okCov = gp ? cov/gp : 0, okIn = kp ? ins/kp : 0;
+      if(okCov >= 0.45 && okIn >= 0.75) return charDone(fails);
+      fails++; mistakes++;
+      status.textContent = okCov < 0.45 ? "Còn thiếu nét. Vẽ lại cho đủ nhé." : "Có nét bị lệch ra ngoài chữ. Vẽ lại nhé.";
+      strokes = []; paint();
+    }
+    actions.replaceChildren(h("button",{type:"button",class:"btn wide",onclick:check},"Xong chữ này"));
+    return {
+      play(){ peeked = true; showGlyph = true; paint(); setTimeout(()=>{ showGlyph=false; paint(); }, 1500); },
+      reset(){ strokes = []; paint(); },
+      outline(){ paint(); }
+    };
+  }
+  nextChar();
+}
+
+function stepSpell(w, card, done){
+  card.append(promptBlock(w.meaning,"mean"), h("p",{class:"ask"},"Viết từ tiếng Anh có nghĩa này"));
+  const sb = speakBtn(w.text, "en", "Nghe gợi ý");
+  if(sb) card.append(h("div",{class:"center"}, sb));
+  const {row, inp} = answerRow("Gõ từ tiếng Anh", "en", v=>{
+    if(normEn(v)===normEn(w.text)) done(true);
+    else done(false, h("span",{},"Viết đúng là ", h("b",{}, w.text), "."));
+  });
+  card.append(row);
+  setTimeout(()=>inp.focus(), 50);
+}
+
+function stepSpeak(w, card, done, it){
+  card.append(promptBlock(w.text,"word"));
+  const sb = speakBtn(w.text, "en", "Nghe mẫu");
+  if(sb) card.append(h("div",{class:"center"}, sb));
+  let tries = 0;
+  const mic = micWidget("en", (alts, err, live)=>{
+    if(!alts.length){ live.textContent = micErrorText(err); return; }
+    const want = normEn(w.text);
+    const hit = alts.some(a=>(" "+normEn(a)+" ").includes(" "+want+" "));
+    if(hit) return done(true, "Phát âm chuẩn!");
+    live.textContent = `Mình nghe thành “${alts[0]}”. Nghe mẫu rồi đọc lại.`;
+  });
+  if(mic){ card.append(h("p",{class:"ask"},"Đọc to từ này vào micro"), mic); }
+  else {
+    card.append(h("p",{class:"ask"},"Máy này chưa dùng được micro. Nghe mẫu, rồi tự đọc to 3 lần."),
+      h("button",{type:"button",class:"btn ghost wide check",onclick:()=>done(true,"Tốt lắm!")},"Mình đã đọc to 3 lần"));
+  }
+  card.append(skipSpeak(it, done));
+}
+
+function renderUnlocked(){
+  const left = Math.max(0, Math.ceil((S.lastDone + S.settings.cooldown*60e3 - Date.now())/60e3));
+  const today = new Date().toDateString();
+  const todayN = S.history.filter(x=>new Date(x.t).toDateString()===today).reduce((a,x)=>a+x.n,0);
+  const list = h("div",{class:"list"});
+  (S.lastSummary||[]).forEach(s=>{
+    const w = byId(s.id); if(!w) return;
+    list.append(h("div",{class:"item"},
+      h("div",{class:"t"}, h("span",{class:w.lang==="zh"?"h":""}, w.text), w.pinyin ? h("span",{class:"muted"}," "+w.pinyin) : null,
+        h("div",{class:"s"}, w.meaning + (s.ok ? "" : " · cần ôn lại"))),
+      speakBtn(w.text, w.lang)));
+  });
+  mount(h("div",{class:"card"},
+      h("div",{class:"done-mark"}, svg(ICON.check)),
+      h("h2",{},"Đã mở khóa"),
+      h("p",{class:"muted center"}, left>0 ? `Bạn được nghỉ ${left} phút. Giờ có thể quay lại app đang dùng.` : "Hết giờ nghỉ. Mở lại app là có bài mới."),
+      list.childElementCount ? list : null,
+      h("p",{class:"muted center"}, `Hôm nay đã học ${todayN} lượt từ`),
+      h("button",{type:"button",class:"btn ghost wide",onclick:()=>{ if(startSession()) renderStep(); }},"Học thêm ngay")));
+}
+
+/* ---------- words ---------- */
+let wordsLang = "zh";
+function parseLines(text, lang){
+  let added=0, skipped=0, dup=0;
+  for(const raw of text.split(/\r?\n/)){
+    const line = raw.trim(); if(!line) continue;
+    const parts = line.split(/\s*(?:\||\t|=)\s*/).map(s=>s.trim()).filter(Boolean);
+    let word, pin="", mean;
+    if(lang==="zh"){
+      if(parts.length>=3){ [word,pin] = parts; mean = parts.slice(2).join(", "); }
+      else if(parts.length===2){ word = parts[0]; mean = parts[1]; pin = autoPinyin(hanOnly(word)); }
+      else { skipped++; continue; }
+      if(!hanOnly(word) || !pinyinKey(pin).letters){ skipped++; continue; }
+    } else {
+      if(parts.length>=2){ word = parts[0]; mean = parts.slice(1).join(", "); }
+      else { skipped++; continue; }
+    }
+    if(S.words.some(x=>x.lang===lang && (lang==="zh" ? x.text===word : normEn(x.text)===normEn(word)))){ dup++; continue; }
+    S.words.push(mkWord(lang, word, pin, mean, false)); added++;
+  }
+  save();
+  return {added, skipped, dup};
+}
+function exportText(lang){
+  return S.words.filter(w=>w.lang===lang).map(w=> lang==="zh" ? `${w.text} | ${w.pinyin} | ${w.meaning}` : `${w.text} | ${w.meaning}`).join("\n");
+}
+function renderWords(){
+  const L = wordsLang;
+  const mine = S.words.filter(w=>w.lang===L);
+  const samples = S.words.filter(w=>w.sample);
+  const seg = h("div",{class:"seg",role:"group","aria-label":"Ngôn ngữ"},
+    ...["zh","en"].map(k=>h("button",{type:"button","aria-pressed":String(k===L),onclick:()=>{wordsLang=k;renderWords();}}, `${LANG_NAME[k]} (${S.words.filter(w=>w.lang===k).length})`)));
+  const ta = h("textarea",{id:"bulk-"+L, placeholder: L==="zh" ? "外 | ngoài\n你好 | nǐ hǎo | xin chào\n吃饭 | ăn cơm" : "habit | thói quen\nborrow | mượn", "aria-label":"Danh sách từ mới"});
+  const bulkMsg = h("div",{class:"note","aria-live":"polite","data-bulkmsg":""});
+  const addBulk = h("button",{type:"button",class:"btn wide ghost",onclick:()=>{
+    const r = parseLines(ta.value, L);
+    if(!r.added && !r.skipped && !r.dup){ bulkMsg.textContent = "Dán hoặc gõ từ vào ô trên trước đã."; return; }
+    renderWords();
+    const m = document.querySelector("[data-bulkmsg]");
+    if(m){ m.textContent = `Đã thêm ${r.added} từ` + (r.dup?`, bỏ ${r.dup} từ đã có`:"") + (r.skipped?`, ${r.skipped} dòng sai định dạng`:"") + "."; m.closest("details").open = true; }
+  }},"Thêm cả danh sách");
+
+  // single-word form
+  const fText = h("input",{type:"text",id:"new-"+L+"-text",placeholder: L==="zh" ? "Chữ Hán, vd: 外" : "Từ tiếng Anh, vd: habit",lang:L==="zh"?"zh-CN":"en",autocomplete:"off",autocapitalize:"off",spellcheck:"false","aria-label":L==="zh"?"Chữ Hán":"Từ tiếng Anh"});
+  const fPin = L==="zh" ? h("input",{type:"text",id:"new-zh-pin",placeholder:"Pinyin (tự điền, sửa được)",autocomplete:"off",autocapitalize:"off",spellcheck:"false","aria-label":"Pinyin"}) : null;
+  const fMean = h("input",{type:"text",id:"new-"+L+"-mean",placeholder:"Nghĩa tiếng Việt, vd: ngoài",autocomplete:"off","aria-label":"Nghĩa tiếng Việt"});
+  const msg = h("div",{class:"note","aria-live":"polite","data-msg":""});
+  let pinTouched = false;
+  if(fPin){
+    fPin.addEventListener("input", ()=>{ pinTouched = !!fPin.value.trim(); });
+    fText.addEventListener("input", ()=>{ if(!pinTouched) fPin.value = autoPinyin(hanOnly(fText.value)); });
+  }
+  const addOne = ()=>{
+    const t = fText.value.trim(), m = fMean.value.trim(), p = fPin ? (fPin.value.trim() || autoPinyin(hanOnly(t))) : "";
+    if(!t){ msg.textContent = L==="zh" ? "Nhập chữ Hán trước đã." : "Nhập từ tiếng Anh trước đã."; fText.focus(); return; }
+    if(L==="zh" && !hanOnly(t)){ msg.textContent = "Ô đầu tiên cần là chữ Hán."; fText.focus(); return; }
+    if(L==="zh" && !pinyinKey(p).letters){ msg.textContent = "Thiếu pinyin. Gõ pinyin, vd: wài hoặc wai4."; fPin.focus(); return; }
+    if(!m){ msg.textContent = "Nhập nghĩa tiếng Việt nữa nhé."; fMean.focus(); return; }
+    if(S.words.some(x=>x.lang===L && (L==="zh" ? x.text===t : normEn(x.text)===normEn(t)))){ msg.textContent = `“${t}” đã có trong danh sách.`; return; }
+    S.words.push(mkWord(L, t, p, m, false)); save();
+    renderWords();
+    const nm = document.querySelector("[data-msg]"); if(nm) nm.textContent = `Đã thêm “${t}”${p?" · "+p:""}.`;
+    const nf = document.getElementById("new-"+L+"-text"); nf && nf.focus();
+  };
+  [fText, fPin, fMean].forEach(f=>f && f.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addOne(); } }));
+  const add = h("button",{type:"button",class:"btn wide",onclick:addOne},"Thêm từ");
+
+  const list = h("div",{class:"list"});
+  mine.slice().reverse().forEach(w=>{
+    const lv = h("div",{class:"lvl",title:`Mức nhớ ${w.box}/7`});
+    for(let k=1;k<=7;k++) lv.append(h("i",{class:k<=w.box?"on":""}));
+    const del = h("button",{type:"button",class:"del","aria-label":"Xoá "+w.text},"Xoá");
+    del.addEventListener("click", ()=>{
+      if(!del.classList.contains("confirm")){ del.classList.add("confirm"); del.textContent="Xoá thật?"; setTimeout(()=>{ del.classList.remove("confirm"); del.textContent="Xoá"; }, 3000); return; }
+      S.words = S.words.filter(x=>x.id!==w.id); save(); renderWords();
+    });
+    list.append(h("div",{class:"item"},
+      h("div",{class:"t"}, h("span",{class:L==="zh"?"h":""}, w.text), w.pinyin ? h("span",{class:"muted"}," "+w.pinyin) : null, w.sample ? h("span",{class:"tag"},"mẫu") : null,
+        h("div",{class:"s"}, w.meaning), lv), del));
+  });
+
+  const copyBtn = h("button",{type:"button",class:"btn small ghost"},"Sao chép");
+  const exp = h("textarea",{id:"export-"+L, readonly:true, "aria-label":"Danh sách để sao lưu"}, exportText(L));
+  copyBtn.addEventListener("click", ()=>{
+    const t = exportText(L);
+    const fallback = ()=>{ exp.focus(); exp.select(); copyBtn.textContent="Đã chọn, bấm Copy"; };
+    try{ navigator.clipboard.writeText(t).then(()=>{ copyBtn.textContent="Đã sao chép"; }, fallback); }catch(e){ fallback(); }
+  });
+
+  mount(seg,
+    h("div",{class:"card"},
+      h("h3",{}, L==="zh" ? "Thêm từ tiếng Trung" : "Thêm từ tiếng Anh"),
+      h("div",{class:"form"}, fText, fPin, fMean, add, msg),
+      h("details",{},
+        h("summary",{},"Dán nhiều từ một lúc"),
+        h("div",{class:"form",style:"margin-top:10px"},
+          h("p",{class:"note",style:"margin:0"}, L==="zh" ? "Mỗi dòng một từ: chữ Hán | nghĩa. Muốn tự ghi pinyin thì: chữ Hán | pinyin | nghĩa." : "Mỗi dòng một từ: từ tiếng Anh | nghĩa tiếng Việt."),
+          ta, addBulk, bulkMsg))),
+    samples.length ? h("div",{class:"card",style:"gap:8px"},
+      h("p",{class:"note",style:"margin:0"}, `Đang có ${samples.length} từ mẫu để bạn thử app. Thêm từ của bạn rồi xoá chúng đi.`),
+      h("button",{type:"button",class:"btn small ghost",onclick:()=>{ S.words=S.words.filter(w=>!w.sample); if(S.session){S.session=null;} save(); renderWords(); }},"Xoá hết từ mẫu")) : null,
+    h("div",{class:"card",style:"gap:0"},
+      h("h3",{style:"margin-bottom:6px"}, `${mine.length} từ ${LANG_NAME[L].toLowerCase()}`),
+      mine.length ? list : h("p",{class:"muted"},"Chưa có từ nào. Thêm ở ô phía trên.")),
+    h("details",{class:"card"},
+      h("summary",{},"Sao lưu danh sách"),
+      h("p",{class:"note"},"Danh sách chỉ lưu trên trình duyệt này. Sao chép đoạn dưới cất vào Ghi chú, khi cần thì dán lại vào ô Thêm từ mới."),
+      exp, copyBtn));
+}
+
+/* ---------- settings ---------- */
+function segRow(label, opts, cur, set){
+  return h("div",{style:"display:flex;flex-direction:column;gap:8px"}, h("h3",{},label),
+    h("div",{class:"seg",role:"group","aria-label":label},
+      ...opts.map(([v,t])=>h("button",{type:"button","aria-pressed":String(v===cur),onclick:()=>{ set(v); save(); renderSettings(); }}, t))));
+}
+function renderSettings(){
+  const st = S.settings;
+  mount(
+    h("div",{class:"card"},
+      segRow("Số từ mỗi lần mở", [[1,"1 từ"],[2,"2 từ"],[3,"3 từ"]], st.perSession, v=>{st.perSession=v;}),
+      segRow("Khi vẽ chữ Hán", [[true,"Hiện chữ mờ để tô"],[false,"Ẩn chữ mờ (khó hơn)"]], st.outline, v=>{st.outline=v;}),
+      segRow("Được nghỉ sau khi học xong", [[5,"5 phút"],[15,"15 phút"],[30,"30 phút"],[60,"1 giờ"]], st.cooldown, v=>{st.cooldown=v;}),
+      h("p",{class:"note",style:"margin:0"},"Trong giờ nghỉ, mở lại app sẽ không bị hỏi bài.")),
+    h("div",{class:"card"},
+      h("h3",{},"Bắt học mỗi khi mở mạng xã hội"),
+      h("p",{class:"note",style:"margin:0"},"Cài một lần. Từ đó mỗi lần bạn mở TikTok, Facebook… điện thoại sẽ tự mở trang này trước."),
+      h("b",{},"iPhone (app Phím tắt)"),
+      h("ol",{class:"steps"},
+        h("li",{},"Mở app Phím tắt → tab Tự động hóa → dấu +."),
+        h("li",{},"Chọn Ứng dụng → chọn TikTok, Facebook, Instagram… → tích Được mở → chọn Chạy ngay lập tức."),
+        h("li",{},"Thêm tác vụ Mở URL, dán link của trang này."),
+        h("li",{},"Học xong thì vuốt về app cũ. Trong giờ nghỉ trang chỉ hiện Đã mở khóa.")),
+      h("b",{},"Android (app MacroDroid)"),
+      h("ol",{class:"steps"},
+        h("li",{},"Tạo macro mới. Kích hoạt: Mở ứng dụng → chọn các app mạng xã hội."),
+        h("li",{},"Hành động: Mở trang web → dán link của trang này.")),
+      h("p",{class:"note",style:"margin:0"},"Micro và bảng viết từng nét chạy tốt nhất khi mở trang bằng Chrome hoặc Safari.")),
+    h("div",{class:"card",style:"gap:8px"},
+      h("h3",{},"Bắt đầu lại"),
+      h("p",{class:"note",style:"margin:0"},"Đưa mức nhớ của mọi từ về 0. Danh sách từ vẫn giữ nguyên."),
+      (()=>{ const b=h("button",{type:"button",class:"del"},"Đặt lại tiến độ"); b.addEventListener("click",()=>{
+        if(!b.classList.contains("confirm")){ b.classList.add("confirm"); b.textContent="Bấm lần nữa để đặt lại"; return; }
+        S.words.forEach(w=>{w.box=0;w.due=0;w.seen=0;w.wrong=0;}); S.session=null; S.lastDone=0; save(); b.textContent="Đã đặt lại"; b.disabled=true; }); return b; })()));
+}
+
+show("learn");
+})();
+</script>
+</body></html>
