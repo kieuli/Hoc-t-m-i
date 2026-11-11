@@ -411,7 +411,16 @@ function renderStep(){
 }
 
 function wordSummary(w, it, fb){
-  const last = S.session.idx === S.session.items.length-1;
+  const ses = S.session;
+  const last = ses.idx === ses.items.length-1;
+  let moved = false, timer = null;
+  const go = () => {
+    if(moved || S.session!==ses || currentTab!=="learn") return; moved = true; clearTimeout(timer);
+    ses.idx++;
+    if(ses.idx >= ses.items.length){ finishSession(); renderUnlocked(); }
+    else { save(); renderStep(); }
+  };
+  timer = setTimeout(go, 2200);
   const box = h("div",{class:"fb ok"},
     h("div",{class:"sum"},
       h("b",{}, it.errors ? "Xong từ này (lần sau ôn lại sớm)" : "Thuộc rồi!"),
@@ -419,11 +428,7 @@ function wordSummary(w, it, fb){
       w.pinyin ? h("div",{class:"pin"}, w.pinyin) : null,
       h("div",{}, w.meaning),
       speakBtn(w.text, w.lang)),
-    h("button",{type:"button",class:"btn wide",onclick:()=>{
-      S.session.idx++;
-      if(S.session.idx >= S.session.items.length){ finishSession(); renderUnlocked(); }
-      else { save(); renderStep(); }
-    }}, last ? "Mở khóa" : "Từ tiếp theo"));
+    h("button",{type:"button",class:"btn wide",onclick:go}, last ? "Mở khóa ngay" : "Sang từ tiếp ngay"));
   fb.replaceChildren(box);
   say(w.text, w.lang);
   box.querySelector(".btn").focus();
