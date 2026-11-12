@@ -165,8 +165,8 @@ const KEY = "khoatu.v1";
 const HOUR = 3600e3;
 const INTERVALS = [0, 1*HOUR, 6*HOUR, 24*HOUR, 3*24*HOUR, 7*24*HOUR, 16*24*HOUR, 35*24*HOUR];
 const LABEL = {intro:"Từ mới", meaning:"Nghĩa", listen:"Nghe", reverse:"Nhận mặt chữ", tone:"Thanh điệu",
-  cloze:"Điền từ", dialog:"Hội thoại", order:"Xếp câu", speak:"Đọc từ", shadow:"Đọc câu", write:"Viết chữ", spell:"Viết từ"};
-const PHASE = {intro:0, meaning:1, listen:1, reverse:1, tone:1, cloze:2, dialog:2, order:2, spell:3, write:3, speak:3, shadow:3};
+  cloze:"Điền từ", dialog:"Hội thoại", order:"Xếp câu", speak:"Đọc từ", shadow:"Đọc câu", write:"Viết chữ", spell:"Viết từ", compose:"Tự đặt câu"};
+const PHASE = {intro:0, meaning:1, listen:1, reverse:1, tone:1, cloze:2, dialog:2, order:2, spell:3, write:3, speak:3, shadow:3, compose:4};
 const LANG_NAME = {zh:"Tiếng Trung", en:"Tiếng Anh"};
 const FILLER = ["ngày mai","con mèo","bệnh viện","màu xanh","đi bộ","cái bàn","mua sắm","mùa hè","điện thoại","nhà hàng"];
 const SAMPLE = [
@@ -409,10 +409,11 @@ function makePlan(w){
     else {
       const recog = shuffle(["meaning","listen","reverse","tone"]);
       const prod = w.box>=2 ? shuffle(["write","speak","shadow"]) : shuffle(["write","speak"]);
-      order = [ctx[0], prod[0], recog[0], prod[1], ctx[1], recog[1], recog[2], ctx[2]];
+      // once a word has been seen, ask for an own sentence in every review
+      order = [ctx[0], "compose", prod[0], recog[0], prod[1], ctx[1], recog[1], recog[2], ctx[2]];
     }
   } else {
-    order = isNew ? ["meaning","listen","spell","speak","reverse"] : shuffle(["meaning","listen","reverse"]).slice(0,2).concat(shuffle(["spell","speak"]));
+    order = isNew ? ["meaning","listen","spell","speak","reverse"] : shuffle(["meaning","listen","reverse"]).slice(0,1).concat(["compose"], shuffle(["spell","speak"]));
   }
   const seen = new Set();
   let plan = order.filter(k=>k && !seen.has(k) && seen.add(k) && canDo(k,w)).slice(0, n);
@@ -537,7 +538,7 @@ function renderStep(){
   };
   const STEP_FN = {intro:stepIntro, meaning:stepMeaning, listen:stepListen, reverse:stepReverse, tone:stepTone,
     cloze:stepCloze, dialog:stepDialog, order:stepOrder, speak: w.lang==="zh" ? stepPinyin : stepSpeak, shadow:stepShadow,
-    write:stepWrite, spell:stepSpell};
+    write:stepWrite, spell:stepSpell, compose:stepCompose};
   (STEP_FN[key] || stepMeaning)(w, card, done, it);
 }
 
@@ -793,7 +794,17 @@ function distractors(w, n, sameLen){
   let cand = S.words.filter(x=>x.lang===w.lang && x.text!==w.text);
   if(w.lang==="zh") cand = cand.concat(ALL_ITEMS.map(x=>({text:x[0], pinyin:x[1], meaning:x[2], lang:"zh"})));
   cand = shuffle(cand);
-  if(sameLen){ const L = [...w.text].length; cand.sort((a,b)=>(Math.abs([...a.text].length-L))-(Math.abs([...b.text].length-L))); }
+  const L = [...w.text].length;
+  if(sameLen) cand.sort((a,b)=>(Math.abs([...a.text].length-L))-(Math.abs([...b.text].length-L)));
+  // harder options: words from the same lesson (e.g. 英语 next to 日语, 法语) come first
+  if(w.lang==="zh"){
+    const deck = DECKS.find(d=>d.id===w.deck) || DECKS.find(d=>d.items.some(x=>x[0]===w.text));
+    if(deck){
+      let near = shuffle(deck.items.filter(x=>x[0]!==w.text).map(x=>({text:x[0], pinyin:x[1], meaning:x[2], lang:"zh"})));
+      if(sameLen) near.sort((a,b)=>(Math.abs([...a.text].length-L))-(Math.abs([...b.text].length-L)));
+      cand = near.slice(0, Math.max(2, n-1)).concat(cand);
+    }
+  }
   const out = [];
   for(const c of cand){ if(seenT.has(c.text) || normVi(c.meaning)===normVi(w.meaning)) continue; seenT.add(c.text); out.push(c); if(out.length>=n) break; }
   return out;
@@ -932,6 +943,59 @@ function stepDialog(w, card, done){
     if(ok) say(lines.map(l=>l[0]).join(" "), "zh");
     done(ok, ok ? "Đúng rồi! Nghe lại cả đoạn hội thoại nhé." : h("span",{},"Cần điền ", h("b",{}, w.text), ` (${w.pinyin}).`));
   }, "hopt"));
+}
+
+// learner writes (or says) 2 own sentences that use the word
+function stepCompose(w, card, done, it){
+  const zh = w.lang==="zh";
+  const ex = info(w).ex;
+  card.append(wordHead(w),
+    h("div",{class:"center muted"}, w.meaning),
+    h("p",{class:"ask"}, "Tự đặt 2 câu khác nhau có dùng từ này. Gõ, dùng bàn phím viết tay, hoặc đọc vào micro."));
+  const boxes = [1,2].map(k=>{
+    const ta = h("textarea",{id:"compose-"+k, rows:"2", lang: zh?"zh-CN":"en", placeholder: `Câu ${k}…`, autocomplete:"off", autocapitalize: zh?"off":"sentences", spellcheck:"false", style:"min-height:64px;font-size:18px", "aria-label":`Câu ${k}`});
+    const mic = micWidget(w.lang, (alts, err, live)=>{
+      if(!alts.length){ live.textContent = micErrorText(err); return; }
+      ta.value = (ta.value.trim() ? ta.value.trim() + " " : "") + alts[0];
+      live.textContent = "Đã thêm vào ô. Sửa lại nếu máy nghe sai.";
+    });
+    return {ta, el: h("div",{class:"form"}, ta, mic)};
+  });
+  const msg = h("div",{class:"heard","aria-live":"polite"});
+  const exBox = h("div",{class:"note",hidden:true}, ex ? h("span",{}, "Câu mẫu: ", h("b",{style:"font-family:var(--f-han)"}, ex[0]), " — ", ex[1]) : "Từ này chưa có câu mẫu.");
+  const check = h("button",{type:"button",class:"btn wide check"},"Kiểm tra 2 câu");
+  card.append(...boxes.map(b=>b.el), msg, check,
+    h("div",{class:"center",style:"display:flex;justify-content:center;gap:16px;flex-wrap:wrap"},
+      h("button",{type:"button",class:"link",onclick:()=>{ exBox.hidden = !exBox.hidden; }},"Xem câu mẫu"),
+      h("button",{type:"button",class:"link",onclick:()=>{ it.errors++; save(); done(true,"Đã bỏ qua. Từ này sẽ được hỏi lại sớm."); }},"Bỏ qua")),
+    exBox);
+
+  const core = s => zh ? hanOnly(s) : normEn(s);
+  const hasWord = s => zh ? hanOnly(s).includes(hanOnly(w.text)) : (" "+normEn(s)+" ").includes(" "+normEn(w.text)+" ");
+  const longEnough = s => zh ? hanOnly(s).length >= hanOnly(w.text).length + 2 : normEn(s).split(" ").length >= normEn(w.text).split(" ").length + 2;
+
+  check.addEventListener("click", ()=>{
+    const v = boxes.map(b=>b.ta.value.trim());
+    for(let k=0;k<2;k++){
+      if(!v[k]){ msg.textContent = `Bạn chưa viết câu ${k+1}.`; boxes[k].ta.focus(); return; }
+      if(!hasWord(v[k])){ msg.textContent = `Câu ${k+1} chưa có từ “${w.text}”.`; boxes[k].ta.focus(); return; }
+      if(!longEnough(v[k])){ msg.textContent = `Câu ${k+1} hơi ngắn, thêm vài chữ nữa thành câu hoàn chỉnh nhé.`; boxes[k].ta.focus(); return; }
+      if(ex && core(v[k])===core(ex[0])){ msg.textContent = `Câu ${k+1} giống hệt câu mẫu. Tự đặt câu khác nhé.`; boxes[k].ta.focus(); return; }
+    }
+    if(core(v[0])===core(v[1])){ msg.textContent = "Hai câu đang giống nhau. Đặt câu thứ hai khác đi nhé."; boxes[1].ta.focus(); return; }
+    // passed: let the learner review before moving on
+    card.querySelectorAll("textarea,button").forEach(e=>e.disabled=true);
+    msg.textContent = "";
+    card.append(h("div",{class:"fb ok"},
+      h("b",{}, "Hai câu của bạn"),
+      ...v.map(s=>h("div",{style:"display:flex;flex-direction:column;gap:2px"},
+        h("div",{style: zh ? "font-family:var(--f-han);font-size:20px" : "font-size:18px"}, s),
+        zh ? h("div",{class:"pin",style:"font-size:14px"}, autoPinyin(hanOnly(s))) : null,
+        h("div",{}, speakBtn(s, w.lang, "Nghe câu của mình")))),
+      ex ? h("div",{class:"note"}, "So với câu mẫu: ", h("b",{style:"font-family:var(--f-han)"}, ex[0]), " — ", ex[1]) : null,
+      h("div",{class:"note"}, "App chỉ kiểm tra bạn đã dùng đúng từ. Nghe lại để tự xem câu có tự nhiên không."),
+      h("button",{type:"button",class:"btn wide",onclick:()=>done(true,"Tốt lắm!")},"Tiếp tục")));
+  });
 }
 
 let vocabSet = null;
