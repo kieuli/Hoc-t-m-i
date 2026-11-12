@@ -165,8 +165,8 @@ const KEY = "khoatu.v1";
 const HOUR = 3600e3;
 const INTERVALS = [0, 1*HOUR, 6*HOUR, 24*HOUR, 3*24*HOUR, 7*24*HOUR, 16*24*HOUR, 35*24*HOUR];
 const LABEL = {intro:"Từ mới", meaning:"Nghĩa", listen:"Nghe", reverse:"Nhận mặt chữ", tone:"Thanh điệu",
-  cloze:"Điền từ", dialog:"Hội thoại", order:"Xếp câu", speak:"Đọc từ", shadow:"Đọc câu", write:"Viết chữ", spell:"Viết từ", compose:"Tự đặt câu"};
-const PHASE = {intro:0, meaning:1, listen:1, reverse:1, tone:1, cloze:2, dialog:2, order:2, spell:3, write:3, speak:3, shadow:3, compose:4};
+  cloze:"Điền từ", dialog:"Hội thoại", order:"Xếp câu", speak:"Đọc từ", shadow:"Đọc câu", write:"Viết chữ", spell:"Viết từ", compose:"Tự đặt câu", flash:"Flashcard", translate:"Dịch ngược"};
+const PHASE = {intro:0, flash:1, meaning:1, listen:1, reverse:1, tone:1, cloze:2, dialog:2, order:2, spell:3, write:3, speak:3, shadow:3, translate:3, compose:4};
 const LANG_NAME = {zh:"Tiếng Trung", en:"Tiếng Anh"};
 const FILLER = ["ngày mai","con mèo","bệnh viện","màu xanh","đi bộ","cái bàn","mua sắm","mùa hè","điện thoại","nhà hàng"];
 const SAMPLE = [
@@ -395,6 +395,7 @@ function canDo(key, w){
     case "shadow": return !!(inf.ex && micPossible());
     case "dialog": return !!(inf.dlg && inf.dlg.some(l=>l[0].includes(w.text)));
     case "tone": return toneVariants(w).length >= 2;
+    case "translate": return translateSources(w).length > 0;
     case "listen": case "reverse": return !!window.speechSynthesis || key==="reverse";
     default: return true;
   }
@@ -405,15 +406,15 @@ function makePlan(w){
   let order;
   if(w.lang==="zh"){
     const ctx = shuffle(["dialog","cloze","order"]).filter(k=>canDo(k,w));
-    if(isNew) order = ["meaning", ctx[0], "write", "speak", "listen", "tone", ctx[1], "shadow"];
+    if(isNew) order = ["meaning", ctx[0], "write", "compose", "speak", "listen", "tone", ctx[1], "shadow"];
     else {
       const recog = shuffle(["meaning","listen","reverse","tone"]);
       const prod = w.box>=2 ? shuffle(["write","speak","shadow"]) : shuffle(["write","speak"]);
-      // once a word has been seen, ask for an own sentence in every review
-      order = [ctx[0], "compose", prod[0], recog[0], prod[1], ctx[1], recog[1], recog[2], ctx[2]];
+      // reviews: flashcard recall first, then reverse translation and an own sentence
+      order = ["flash", ctx[0], "translate", "compose", prod[0], recog[0], prod[1], ctx[1], recog[1], recog[2], ctx[2]];
     }
   } else {
-    order = isNew ? ["meaning","listen","spell","speak","reverse"] : shuffle(["meaning","listen","reverse"]).slice(0,1).concat(["compose"], shuffle(["spell","speak"]));
+    order = isNew ? ["meaning","listen","spell","speak","reverse"] : ["flash"].concat(shuffle(["listen","reverse"]).slice(0,1), ["compose"], shuffle(["spell","speak"]));
   }
   const seen = new Set();
   let plan = order.filter(k=>k && !seen.has(k) && seen.add(k) && canDo(k,w)).slice(0, n);
@@ -421,16 +422,26 @@ function makePlan(w){
   if(isNew && w.lang==="zh") plan.unshift("intro");
   return plan;
 }
-function startSession(){
+function startSession(mode){
   const now = Date.now(), n = S.settings.perSession;
   const byDue = (a,b)=> (a.due-b.due) || (a.box-b.box);
+  const weakest = (a,b)=> (a.box-b.box) || (b.wrong-a.wrong) || (a.due-b.due);
   const p = pool();
   const dueReviews = p.filter(w=>w.seen && w.due<=now).sort(byDue);   // learned words whose review time has come
   const fresh = p.filter(w=>!w.seen).sort(byDue);                     // never studied, in list order
-  const later = p.filter(w=>w.seen && w.due>now).sort(byDue);         // learned, not due yet
-  // reviews first, but keep one slot for a new word so the list keeps moving
-  const nRev = fresh.length ? Math.min(dueReviews.length, Math.max(n-1, 1)) : dueReviews.length;
-  const pick = dueReviews.slice(0, nRev).concat(fresh, dueReviews.slice(nRev), later).slice(0, n);
+  const later = p.filter(w=>w.seen && w.due>now).sort(weakest);       // learned, not due yet (weakest first)
+  let pick;
+  if(mode==="review"){
+    // "Ôn lại từ đã học": only words already studied
+    pick = dueReviews.concat(later).slice(0, n);
+  } else {
+    // reviews first, but keep one slot for a new word so the list keeps moving
+    const nRev = fresh.length ? Math.min(dueReviews.length, Math.max(n-1, 1)) : dueReviews.length;
+    const revs = dueReviews.slice(0, nRev);
+    // always remind at least one learned word, even if none is due yet
+    if(!revs.length && later.length && n > 1) revs.push(later[0]);
+    pick = revs.concat(fresh, dueReviews.slice(nRev), later.filter(w=>!revs.includes(w))).slice(0, n);
+  }
   if(!pick.length){ S.session=null; save(); return false; }
   S.session = {items: pick.map(w=>({id:w.id, step:0, errors:0, plan:makePlan(w)})), idx:0};
   save(); return true;
@@ -538,7 +549,7 @@ function renderStep(){
   };
   const STEP_FN = {intro:stepIntro, meaning:stepMeaning, listen:stepListen, reverse:stepReverse, tone:stepTone,
     cloze:stepCloze, dialog:stepDialog, order:stepOrder, speak: w.lang==="zh" ? stepPinyin : stepSpeak, shadow:stepShadow,
-    write:stepWrite, spell:stepSpell, compose:stepCompose};
+    write:stepWrite, spell:stepSpell, compose:stepCompose, flash:stepFlash, translate:stepTranslate};
   (STEP_FN[key] || stepMeaning)(w, card, done, it);
 }
 
@@ -913,36 +924,139 @@ function blankLine(text, word){
   const i = text.indexOf(word);
   return h("span",{}, text.slice(0,i), h("span",{class:"blank"}, "＿".repeat(Math.max(2,[...word].length))), text.slice(i+word.length));
 }
+// --- chunk questions: blank the word together with a neighbouring word (学 + 汉语 -> 学汉语) ---
+const PARTICLES = new Set(["吗","呢","吧","了","的","啊","呀","么","着","过","得","地"]);
+function findPartner(text, i, word){
+  tokenize(""); // makes sure vocabSet exists
+  const ok = s => s && [...s].every(isHan) && s!==word && !PARTICLES.has(s);
+  const after = [...text.slice(i + word.length)];
+  for(let len=Math.min(4, after.length); len>=1; len--){
+    const s = after.slice(0, len).join("");
+    if(ok(s) && (vocabSet.has(s) || len===1)) return {side:"r", part:s};
+  }
+  const before = [...text.slice(0, i)];
+  for(let len=Math.min(4, before.length); len>=1; len--){
+    const s = before.slice(before.length - len).join("");
+    if(ok(s) && (vocabSet.has(s) || len===1)) return {side:"l", part:s};
+  }
+  return null;
+}
+function chunkQ(w, text){
+  if(w.lang!=="zh") return null;
+  const i = text.indexOf(w.text); if(i<0) return null;
+  const p = findPartner(text, i, w.text); if(!p) return null;
+  const mk = (word, part) => p.side==="r" ? word + part : part + word;
+  const chunk = mk(w.text, p.part);
+  const start = p.side==="r" ? i : i - p.part.length;
+  const ds = distractors(w, 3, true).map(x=>x.text);
+  const pl = [...p.part].length;
+  const others = shuffle([...vocabSet].filter(s=>[...s].length===pl && s!==p.part && s!==w.text && [...s].every(isHan)));
+  const set = new Set([chunk]);
+  // wrong main word + right partner, right main word + wrong partner, both wrong
+  for(const c of [mk(ds[0], p.part), mk(w.text, others[0]), mk(ds[1], p.part), mk(w.text, others[1]), mk(ds[2], p.part)]){
+    if(c && !c.includes("undefined") && !set.has(c)) set.add(c);
+    if(set.size >= 4) break;
+  }
+  if(set.size < 3) return null;
+  return {chunk, start, len: chunk.length, opts: shuffle([...set])};
+}
+function blankChunk(text, q){
+  return h("span",{}, text.slice(0, q.start), h("span",{class:"blank"}, "＿".repeat([...q.chunk].length + 1)), text.slice(q.start + q.len));
+}
+
 function stepCloze(w, card, done){
   const ex = info(w).ex;
-  card.append(h("p",{class:"ask"},"Chọn từ đúng điền vào chỗ trống"),
+  const q = chunkQ(w, ex[0]);
+  card.append(h("p",{class:"ask"}, q ? "Chọn cụm từ đúng điền vào chỗ trống" : "Chọn từ đúng điền vào chỗ trống"),
     h("div",{class:"prompt"},
-      h("div",{style:"font-family:var(--f-han);font-size:26px;line-height:1.5"}, blankLine(ex[0], w.text)),
+      h("div",{style:"font-family:var(--f-han);font-size:26px;line-height:1.5"}, q ? blankChunk(ex[0], q) : blankLine(ex[0], w.text)),
       h("div",{class:"muted"}, ex[1])));
-  const opts = shuffle([w.text, ...distractors(w, 3, true).map(x=>x.text)]);
-  card.append(choiceGrid(opts, o=>o===w.text, ok=>{
+  const right = q ? q.chunk : w.text;
+  const opts = q ? q.opts : shuffle([w.text, ...distractors(w, 3, true).map(x=>x.text)]);
+  card.append(choiceGrid(opts, o=>o===right, ok=>{
     if(ok) say(ex[0], "zh");
-    done(ok, ok ? `${ex[0]}` : h("span",{},"Cần điền ", h("b",{}, w.text), ` (${w.pinyin}).`));
+    done(ok, ok ? `${ex[0]}` : h("span",{},"Cần điền ", h("b",{}, right), ` (${autoPinyin(right)}).`));
   }, "hopt"));
 }
 
 function stepDialog(w, card, done){
   const lines = info(w).dlg;
   const box = h("div",{class:"dlg"});
+  // the first line with the word gets the harder chunk blank; later lines just hide the word
+  const qi = lines.findIndex(l=>l[0].includes(w.text));
+  const q = qi >= 0 ? chunkQ(w, lines[qi][0]) : null;
   lines.forEach((l,k)=>{
     const has = l[0].includes(w.text);
     box.append(h("div",{class:"line "+(k%2?"b":"a")},
       h("span",{class:"who"}, k%2 ? "B" : "A"),
       h("div",{},
-        h("div",{class:"zh"}, has ? blankLine(l[0], w.text) : l[0]),
+        h("div",{class:"zh"}, (q && k===qi) ? blankChunk(l[0], q) : (has ? blankLine(l[0], w.text) : l[0])),
         h("div",{class:"vi"}, l[1]))));
   });
-  card.append(h("p",{class:"ask"},"Hội thoại: chọn từ đúng điền vào chỗ trống"), box);
-  const opts = shuffle([w.text, ...distractors(w, 3, true).map(x=>x.text)]);
-  card.append(choiceGrid(opts, o=>o===w.text, ok=>{
+  card.append(h("p",{class:"ask"}, q ? "Hội thoại: chọn cụm từ đúng cho chỗ trống dài" : "Hội thoại: chọn từ đúng điền vào chỗ trống"), box);
+  const right = q ? q.chunk : w.text;
+  const opts = q ? q.opts : shuffle([w.text, ...distractors(w, 3, true).map(x=>x.text)]);
+  card.append(choiceGrid(opts, o=>o===right, ok=>{
     if(ok) say(lines.map(l=>l[0]).join(" "), "zh");
-    done(ok, ok ? "Đúng rồi! Nghe lại cả đoạn hội thoại nhé." : h("span",{},"Cần điền ", h("b",{}, w.text), ` (${w.pinyin}).`));
+    done(ok, ok ? "Đúng rồi! Nghe lại cả đoạn hội thoại nhé." : h("span",{},"Cần điền ", h("b",{}, right), ` (${autoPinyin(right)}).`));
   }, "hopt"));
+}
+
+// Flashcard: see the word, recall the meaning, flip, rate yourself
+function stepFlash(w, card, done, it){
+  const zh = w.lang==="zh";
+  card.append(h("p",{class:"ask"},"Nhìn từ, nhớ xem nghĩa là gì, rồi lật thẻ"),
+    h("div",{class:"prompt"}, h("div",{class: zh ? "han" : "word"}, w.text)));
+  const back = h("div",{class:"prompt",hidden:true},
+    w.pinyin ? h("div",{class:"pin"}, w.pinyin) : null,
+    h("div",{class:"mean"}, w.meaning),
+    speakBtn(w.text, w.lang));
+  const flip = h("button",{type:"button",class:"btn wide"},"Lật thẻ");
+  const rate = h("div",{class:"opts",hidden:true},
+    h("button",{type:"button",class:"opt check",onclick:()=>{ it.errors++; save(); done(true,"Không sao, từ này sẽ được nhắc lại sớm."); }},"Chưa nhớ"),
+    h("button",{type:"button",class:"opt check",onclick:()=>done(true,"Tốt lắm!")},"Mình nhớ"));
+  flip.addEventListener("click", ()=>{ back.hidden = false; flip.hidden = true; rate.hidden = false; say(w.text, w.lang); });
+  card.append(back, flip, rate);
+}
+
+// Reverse translation: Vietnamese sentence -> write it in Chinese
+function translateSources(w){
+  const inf = info(w), out = [];
+  if(inf.ex && inf.ex[0].includes(w.text) && inf.ex[1]) out.push(inf.ex);
+  (inf.dlg || []).forEach(l=>{ if(l[0].includes(w.text) && l[1]) out.push(l); });
+  return out;
+}
+function lcsLen(a, b){
+  a = [...a]; b = [...b];
+  const d = Array.from({length:a.length+1}, ()=>new Array(b.length+1).fill(0));
+  for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) d[i][j] = a[i-1]===b[j-1] ? d[i-1][j-1]+1 : Math.max(d[i-1][j], d[i][j-1]);
+  return d[a.length][b.length];
+}
+function stepTranslate(w, card, done){
+  const src = shuffle(translateSources(w))[0];
+  const target = hanOnly(src[0]);
+  card.append(h("p",{class:"ask"},"Dịch câu này sang tiếng Trung"),
+    h("div",{class:"prompt"}, h("div",{class:"mean",style:"font-size:22px"}, src[1])));
+  const hint = h("div",{class:"note center",hidden:true}, "Gợi ý: câu có dùng từ ", h("b",{style:"font-family:var(--f-han)"}, w.text), ` (${w.pinyin}) và có ${[...target].length} chữ Hán.`);
+  const ta = h("textarea",{id:"translate-ans", rows:"2", lang:"zh-CN", placeholder:"Viết câu tiếng Trung…", autocomplete:"off", autocapitalize:"off", spellcheck:"false", style:"min-height:64px;font-size:20px", "aria-label":"Câu dịch"});
+  const mic = micWidget("zh", (alts, err, live)=>{
+    if(!alts.length){ live.textContent = micErrorText(err); return; }
+    ta.value = alts[0]; live.textContent = "Đã điền vào ô. Sửa lại nếu máy nghe sai.";
+  });
+  const msg = h("div",{class:"heard","aria-live":"polite"});
+  const check = h("button",{type:"button",class:"btn wide check"},"Kiểm tra");
+  check.addEventListener("click", ()=>{
+    const got = hanOnly(ta.value);
+    if(!got){ msg.textContent = "Bạn chưa viết câu nào."; ta.focus(); return; }
+    const score = lcsLen(got, target) / Math.max([...got].length, [...target].length);
+    const pct = Math.round(score*100);
+    const answer = h("span",{}, " Câu mẫu: ", h("b",{style:"font-family:var(--f-han)"}, src[0]), " ", h("span",{class:"pin",style:"font-size:14px"}, autoPinyin(target)));
+    if(got===target) { say(src[0],"zh"); return done(true, "Chính xác 100%!"); }
+    if(score >= 0.75 && got.includes(hanOnly(w.text))){ say(src[0],"zh"); return done(true, h("span",{}, `Giống câu mẫu ${pct}%, đạt!`, answer)); }
+    done(false, h("span",{}, !got.includes(hanOnly(w.text)) ? `Câu chưa có từ “${w.text}”.` : `Mới giống câu mẫu ${pct}%.`, answer));
+  });
+  card.append(ta, mic, msg, check, h("div",{class:"center"}, h("button",{type:"button",class:"link",onclick:()=>{ hint.hidden = !hint.hidden; }},"Gợi ý")), hint);
+  setTimeout(()=>ta.focus(), 50);
 }
 
 // learner writes (or says) 2 own sentences that use the word
@@ -1079,7 +1193,8 @@ function renderUnlocked(){
       h("p",{class:"muted center"}, left>0 ? `Bạn được nghỉ ${left} phút. Giờ có thể quay lại app đang dùng.` : "Hết giờ nghỉ. Mở lại app là có bài mới."),
       list.childElementCount ? list : null,
       h("p",{class:"muted center"}, `Hôm nay đã học ${todayN} lượt từ`),
-      h("button",{type:"button",class:"btn ghost wide",onclick:()=>{ if(startSession()) renderStep(); }},"Học thêm ngay")));
+      h("button",{type:"button",class:"btn ghost wide",onclick:()=>{ if(startSession()) renderStep(); }},"Học thêm ngay"),
+      pool().some(w=>w.seen) ? h("button",{type:"button",class:"btn ghost wide",onclick:()=>{ if(startSession("review")) renderStep(); }},"Ôn lại từ đã học") : null));
 }
 
 /* ---------- words ---------- */
