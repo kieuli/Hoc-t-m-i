@@ -424,7 +424,8 @@ function makePlan(w){
   let order;
   if(w.lang==="zh"){
     const ctx = shuffle(["dialog","cloze","order"]).filter(k=>canDo(k,w));
-    if(isNew) order = ["meaning", ctx[0], "write", "compose", "speak", "picture", "listen", "tone", ctx[1], "shadow"];
+    // translation (Vietnamese sentence -> Chinese) replaces free sentence-making
+    if(isNew) order = ["meaning", ctx[0], "write", "translate", "speak", "picture", "listen", "tone", ctx[1], "shadow"];
     else {
       const recog = shuffle(["meaning","listen","reverse","tone"]);
       const prod = w.box>=2 ? shuffle(["write","speak","shadow"]) : shuffle(["write","speak"]);
